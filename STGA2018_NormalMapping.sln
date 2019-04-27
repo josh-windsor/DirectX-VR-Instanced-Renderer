@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NormalMapping", "NormalMapping\NormalMapping.vcxproj", "{FA74DDD1-6635-5908-2F70-A2859BEF9DE4}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Framework", "Framework\Framework.vcxproj", "{1362EE31-7FCC-A2A8-C80A-544E34B480FD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FA74DDD1-6635-5908-2F70-A2859BEF9DE4}.Debug|Win32.ActiveCfg = Debug|Win32
+		{FA74DDD1-6635-5908-2F70-A2859BEF9DE4}.Debug|Win32.Build.0 = Debug|Win32
+		{FA74DDD1-6635-5908-2F70-A2859BEF9DE4}.Debug|x64.ActiveCfg = Debug|x64
+		{FA74DDD1-6635-5908-2F70-A2859BEF9DE4}.Debug|x64.Build.0 = Debug|x64
+		{FA74DDD1-6635-5908-2F70-A2859BEF9DE4}.Release|Win32.ActiveCfg = Release|Win32
+		{FA74DDD1-6635-5908-2F70-A2859BEF9DE4}.Release|Win32.Build.0 = Release|Win32
+		{FA74DDD1-6635-5908-2F70-A2859BEF9DE4}.Release|x64.ActiveCfg = Release|x64
+		{FA74DDD1-6635-5908-2F70-A2859BEF9DE4}.Release|x64.Build.0 = Release|x64
+		{1362EE31-7FCC-A2A8-C80A-544E34B480FD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{1362EE31-7FCC-A2A8-C80A-544E34B480FD}.Debug|Win32.Build.0 = Debug|Win32
+		{1362EE31-7FCC-A2A8-C80A-544E34B480FD}.Debug|x64.ActiveCfg = Debug|x64
+		{1362EE31-7FCC-A2A8-C80A-544E34B480FD}.Debug|x64.Build.0 = Debug|x64
+		{1362EE31-7FCC-A2A8-C80A-544E34B480FD}.Release|Win32.ActiveCfg = Release|Win32
+		{1362EE31-7FCC-A2A8-C80A-544E34B480FD}.Release|Win32.Build.0 = Release|Win32
+		{1362EE31-7FCC-A2A8-C80A-544E34B480FD}.Release|x64.ActiveCfg = Release|x64
+		{1362EE31-7FCC-A2A8-C80A-544E34B480FD}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
