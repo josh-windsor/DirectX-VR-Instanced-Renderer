@@ -113,11 +113,15 @@
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(OVRSDKROOT)LibOVR/Common/;$(OVRSDKROOT)LibOVR/Include/</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalDependencies>$(OVRSDKROOT)LibOVR/Lib/Windows/$(Platform)/$(Configuration)/$(VSDIR)/LibOVR.lib;</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -167,6 +171,7 @@
     <ClInclude Include="Framework.h" />
     <ClInclude Include="JobQueue.h" />
     <ClInclude Include="Mesh.h" />
+    <ClInclude Include="OculusTexture.h" />
     <ClInclude Include="ShaderSet.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="VertexFormats.h" />

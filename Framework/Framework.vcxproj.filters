@@ -58,6 +58,7 @@
     <ClInclude Include="tinyobjloader\tiny_obj_loader.h">
       <Filter>tinyobjloader</Filter>
     </ClInclude>
+    <ClInclude Include="OculusTexture.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectXTK\DDSTextureLoader.cpp">

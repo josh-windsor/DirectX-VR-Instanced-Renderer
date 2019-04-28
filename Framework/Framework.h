@@ -6,6 +6,8 @@
 //================================================================================================
 
 #include "CommonHeader.h"
+#include <OVR_CAPI.h>
+#include "OculusTexture.h"
 
 //================================================================================
 // Time releated functions
@@ -127,6 +129,12 @@ struct SystemsInterface
 	ID3D11Device* pD3DDevice;
 	ID3D11DeviceContext* pD3DContext;
 	ID3D11RenderTargetView* pSwapRenderTarget; // 
+
+	//Oculus stuff
+	ovrSession* pOvrSession;
+	ovrRecti* pEyeRenderViewport;
+	OculusTexture* pEyeRenderTexture[2];
+
 	dd::ContextHandle pDebugDrawContext;
 	Camera* pCamera;
 	u32 width;

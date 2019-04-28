@@ -17,6 +17,12 @@
 #include <fstream>
 
 // ========================================================
+// OVR
+// ========================================================
+#include <OVR_CAPI.h>
+#include "OVR_CAPI_D3D.h"
+
+// ========================================================
 // IMGUI
 // ========================================================
 #include "imgui/imgui_impl_dx11.h"
@@ -27,6 +33,7 @@ extern IMGUI_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPA
 // LIBRARY linking
 // ========================================================
 
+#pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3d11")
 #pragma comment(lib, "dxguid")
 #pragma comment(lib, "d3dcompiler")
@@ -319,6 +326,10 @@ public:
 	ComPtr<ID3D11DepthStencilView> m_pDepthStencilView;
 	ComPtr<ID3D11RenderTargetView> m_pRenderTargetView;
 	ComPtr<ID3D11DepthStencilState> m_pDepthStencilState;
+	ovrSession m_pOvrSession;
+	ovrRecti m_pOvrEyeRenderViewport[2];
+	OculusTexture* m_pOvrEyeRenderTexture[2] = { nullptr, nullptr };
+
 
 	std::function<void()>          m_pRenderCallback;
 	std::function<void(u32, u32)>  m_pResizeCallback;
@@ -384,6 +395,21 @@ private:
 
 	void initD3D()
 	{
+		//Oculus chain setup
+		int msaaRate = 4;
+
+		// Initializes LibOVR, and the Rift
+		ovrInitParams initParams = { ovrInit_RequestVersion | ovrInit_FocusAware, OVR_MINOR_VERSION, NULL, 0, 0 };
+		ovrResult result = ovr_Initialize(&initParams);
+		VALIDATE(OVR_SUCCESS(result), "Failed to initialize libOVR.");
+
+		ovrGraphicsLuid luid;
+		result = ovr_Create(&m_pOvrSession, &luid);
+		VALIDATE(OVR_SUCCESS(result), "Failed to create ovr session.");
+
+
+
+
 		UINT createDeviceFlags = 0;
 		const UINT width = Window::s_width;
 		const UINT height = Window::s_height;
@@ -393,29 +419,12 @@ private:
 		createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif // DEBUG
 
-		// Acceptable driver types.
-		const D3D_DRIVER_TYPE driverTypes[] = {
-			D3D_DRIVER_TYPE_HARDWARE,
-			D3D_DRIVER_TYPE_WARP,
-			D3D_DRIVER_TYPE_REFERENCE,
-		};
-		const UINT numDriverTypes = ARRAYSIZE(driverTypes);
-
-		// This array defines the ordering of feature levels that D3D should attempt to create.
-		const D3D_FEATURE_LEVEL featureLevels[] = {
-			D3D_FEATURE_LEVEL_11_1,
-			D3D_FEATURE_LEVEL_11_0,
-			D3D_FEATURE_LEVEL_10_1,
-			D3D_FEATURE_LEVEL_10_0,
-		};
-		const UINT numFeatureLevels = ARRAYSIZE(featureLevels);
 
 		DXGI_SWAP_CHAIN_DESC sd = { 0 };
 		sd.BufferCount = 2;
 		sd.BufferDesc.Width = width;
 		sd.BufferDesc.Height = height;
 		sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		sd.BufferDesc.RefreshRate.Numerator = 60;
 		sd.BufferDesc.RefreshRate.Denominator = 1;
 		sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		sd.OutputWindow = m_hWnd;
@@ -428,37 +437,58 @@ private:
 		D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
 
 		// Try to create the device and swap chain:
-		for (UINT driverTypeIndex = 0; driverTypeIndex < numDriverTypes; ++driverTypeIndex)
+		IDXGIFactory * DXGIFactory = nullptr;
+		hr = CreateDXGIFactory1(__uuidof(IDXGIFactory), (void**)(&DXGIFactory));
+		if (FAILED(hr))panicF("Failed to create CreateDXGIFactory1!");
+
+		IDXGIAdapter * Adapter = nullptr;
+		//init adapters
+		for (UINT iAdapter = 0; DXGIFactory->EnumAdapters(iAdapter, &Adapter) != DXGI_ERROR_NOT_FOUND; ++iAdapter)
 		{
-			auto driverType = driverTypes[driverTypeIndex];
-			hr = D3D11CreateDeviceAndSwapChain(nullptr, driverType, nullptr, createDeviceFlags,
-				featureLevels, numFeatureLevels, D3D11_SDK_VERSION,
-				&sd, m_pSwapChain.GetAddressOf(), m_pD3DDevice.GetAddressOf(),
-				&featureLevel, m_pDeviceContext.GetAddressOf());
-
-			if (hr == E_INVALIDARG)
-			{
-				// DirectX 11.0 platforms will not recognize D3D_FEATURE_LEVEL_11_1 so we need to retry without it
-				hr = D3D11CreateDeviceAndSwapChain(nullptr, driverType, nullptr, createDeviceFlags,
-					&featureLevels[1], numFeatureLevels - 1,
-					D3D11_SDK_VERSION, &sd, m_pSwapChain.GetAddressOf(),
-					m_pD3DDevice.GetAddressOf(), &featureLevel,
-					m_pDeviceContext.GetAddressOf());
-			}
-
-			if (SUCCEEDED(hr))
-			{
+			DXGI_ADAPTER_DESC adapterDesc;
+			Adapter->GetDesc(&adapterDesc);
+			if ((reinterpret_cast<LUID*>(&luid) == nullptr) || memcmp(&adapterDesc.AdapterLuid, reinterpret_cast<LUID*>(&luid), sizeof(LUID)) == 0)
 				break;
-			}
+			Adapter->Release();
 		}
 
-		if (FAILED(hr))
-		{
-			panicF("Failed to create D3D device or swap chain!");
-		}
+		//setup device
+		auto DriverType = Adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE;
+
+		hr = D3D11CreateDevice(Adapter, DriverType, 0, createDeviceFlags, 0, 0, D3D11_SDK_VERSION, m_pD3DDevice.GetAddressOf(), nullptr, m_pDeviceContext.GetAddressOf());
+		Adapter->Release();
+		if (FAILED(hr))panicF("Failed to create D3D device!");
+
+		//setup swapchain
+		hr = DXGIFactory->CreateSwapChain(m_pD3DDevice.Get(), &sd, m_pSwapChain.GetAddressOf());
+		DXGIFactory->Release();
+		if (FAILED(hr))panicF("Failed to create SwapChain!");
 
 		// Now setup all the views and bind the target.
 		SetupRenderTarget(width, height);
+
+
+
+		//oculus hmd setup
+		ovrHmdDesc hmdDesc = ovr_GetHmdDesc(m_pOvrSession);
+		// Make the eye render buffers (caution if actual size < requested due to HW limits).
+		for (int eye = 0; eye < 2; ++eye)
+		{
+			ovrSizei idealSize = ovr_GetFovTextureSize(m_pOvrSession, (ovrEyeType)eye, hmdDesc.DefaultEyeFov[eye], 1.0f);
+			m_pOvrEyeRenderTexture[eye] = new OculusTexture();
+			if (!m_pOvrEyeRenderTexture[eye]->Init(m_pOvrSession, idealSize.w, idealSize.h, msaaRate, true, m_pD3DDevice.Get()))
+			{
+				panicF("Failed to create eye texture.");
+			}
+			m_pOvrEyeRenderViewport[eye].Pos.x = 0;
+			m_pOvrEyeRenderViewport[eye].Pos.y = 0;
+			m_pOvrEyeRenderViewport[eye].Size = idealSize;
+			if (!m_pOvrEyeRenderTexture[eye]->TextureChain || !m_pOvrEyeRenderTexture[eye]->DepthTextureChain)
+			{
+				panicF("Failed to create texture.");
+			}
+		}
+
 
 	}
 
@@ -1207,6 +1237,10 @@ int framework_main(FrameworkApp& rApp, const char* pTitleString, HINSTANCE hInst
 	systems.pD3DDevice = renderWindow.m_pD3DDevice.Get();
 	systems.pD3DContext = renderWindow.m_pDeviceContext.Get();
 	systems.pSwapRenderTarget = renderWindow.m_pRenderTargetView.Get();
+	systems.pOvrSession = &renderWindow.m_pOvrSession;
+	systems.pEyeRenderViewport = renderWindow.m_pOvrEyeRenderViewport;
+	systems.pEyeRenderTexture[0] = renderWindow.m_pOvrEyeRenderTexture[0];
+	systems.pEyeRenderTexture[1] = renderWindow.m_pOvrEyeRenderTexture[1];
 	systems.pCamera = &camera;
 	systems.width = Window::s_width;
 	systems.height = Window::s_height;

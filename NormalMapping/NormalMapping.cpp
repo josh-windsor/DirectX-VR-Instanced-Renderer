@@ -3,6 +3,9 @@
 #include "ShaderSet.h"
 #include "Mesh.h"
 #include "Texture.h"
+#include <OVR_CAPI.h>
+
+using namespace DirectX;
 
 //================================================================================
 // Normal Mapping Application
@@ -32,7 +35,7 @@ public:
 	{
 		m_position = v3(0.5f, 0.5f, 0.5f);
 		m_size = 1.0f;
-		systems.pCamera->eye = v3(10.f, 5.f, 7.f);
+		systems.pCamera->eye = v3(5.f, 2.f, 7.f);
 		systems.pCamera->look_at(v3(3.f, 0.5f, 0.f));
 
 		// compile a set of shaders
@@ -85,75 +88,158 @@ public:
 		m_perFrameCBData.m_lightPos = v4(sin(m_perFrameCBData.m_time*5.0f) * 4.f + 3.0f, 1.f, 1.f, 0.f);
 	}
 
+	//function to clear oculus stuff
+	void SetAndClearRenderTarget(ID3D11RenderTargetView * rendertarget, ID3D11DepthStencilView* depthStencil, ID3D11DeviceContext* context)
+	{
+		//Set & Clear buffers
+		f32 clearValue[] = { 0.f, 0.f, 0.f, 0.f };
+
+		context->OMSetRenderTargets(1, &rendertarget, depthStencil);
+		context->ClearRenderTargetView(rendertarget, clearValue);
+		if (depthStencil)
+			context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
+	}
+
 	void on_render(SystemsInterface& systems) override
 	{
-		//////////////////////////////////////////////////////////////////////////
-		// Imgui can also be used inside the render function.
-		//////////////////////////////////////////////////////////////////////////
+		ovrSessionStatus sessionStatus;
+		ovrResult result = ovr_GetSessionStatus(*systems.pOvrSession, &sessionStatus);
+		printf(std::to_string(result).c_str());
+		if (OVR_FAILURE(result))
+			panicF("Connection failed.");
 
+		//VR Implementation 
+		ovrHmdDesc hmdDesc = ovr_GetHmdDesc(*systems.pOvrSession);
 
-		//////////////////////////////////////////////////////////////////////////
-		// You can use features from the DebugDrawlibrary.
-		// Investigate the following functions for ideas.
-		// see also : https://github.com/glampert/debug-draw
-		//////////////////////////////////////////////////////////////////////////
+		// Call ovr_GetRenderDesc each frame to get the ovrEyeRenderDesc, as the returned values (e.g. HmdToEyePose) may change at runtime.
+		ovrEyeRenderDesc eyeRenderDesc[2];
+		eyeRenderDesc[0] = ovr_GetRenderDesc(*systems.pOvrSession, ovrEye_Left, hmdDesc.DefaultEyeFov[0]);
+		eyeRenderDesc[1] = ovr_GetRenderDesc(*systems.pOvrSession, ovrEye_Right, hmdDesc.DefaultEyeFov[1]);
 
-		// Grid from -50 to +50 in both X & Z
-		auto ctx = systems.pDebugDrawContext;
+		// Get both eye poses simultaneously, with IPD offset already included. 
+		ovrPosef EyeRenderPose[2];
+		ovrPosef HmdToEyePose[2] = { eyeRenderDesc[0].HmdToEyePose,
+									 eyeRenderDesc[1].HmdToEyePose };
 
-		dd::xzSquareGrid(ctx, -50.0f, 50.0f, 0.0f, 1.f, dd::colors::DimGray);
-		dd::axisTriad(ctx, (const float*)& m4x4::Identity, 0.1f, 15.0f);
-		dd::cross(ctx, (const float*)& m_perFrameCBData.m_lightPos, 0.1f, 15.0f);
+		double sensorSampleTime;    // sensorSampleTime is fed into the layer later
+		ovr_GetEyePoses(*systems.pOvrSession, 0, ovrTrue, HmdToEyePose, EyeRenderPose, &sensorSampleTime);
 
-		// Push Per Frame Data to GPU
-		push_constant_buffer(systems.pD3DContext, m_pPerFrameCB, m_perFrameCBData);
-
-		// Bind our set of shaders.
-		m_meshShader.bind(systems.pD3DContext);
-
-		// Bind Constant Buffers, to both PS and VS stages
-		ID3D11Buffer* buffers[] = { m_pPerFrameCB, m_pPerDrawCB };
-		systems.pD3DContext->VSSetConstantBuffers(0, 2, buffers);
-		systems.pD3DContext->PSSetConstantBuffers(0, 2, buffers);
-
-		// Bind a sampler state
-		ID3D11SamplerState* samplers[] = { m_pLinearMipSamplerState };
-		systems.pD3DContext->PSSetSamplers(0, 1, samplers);
-
-
-		constexpr f32 kGridSpacing = 1.5f;
-		constexpr u32 kNumInstances = 5;
-		constexpr u32 kNumModelTypes = 2;
-
-		for(u32 i = 0; i < kNumModelTypes; ++i)
+		ovrTimewarpProjectionDesc posTimewarpProjectionDesc = {};
+		// Render Scene to Eye Buffers
+		for (int eye = 0; eye < 2; ++eye)
 		{
-			// Bind a mesh and texture.
-			m_meshArray[i].bind(systems.pD3DContext);
-			m_textures[0].bind(systems.pD3DContext, ShaderStage::kPixel, 0);
-			m_textures[1].bind(systems.pD3DContext, ShaderStage::kPixel, 1);
+			SetAndClearRenderTarget(systems.pEyeRenderTexture[eye]->GetRTV(), systems.pEyeRenderTexture[eye]->GetDSV(), systems.pD3DContext);
 
-			// Draw several instances
-			for (u32 j = 0; j < kNumInstances; ++j)
+			//setup viewport
+			D3D11_VIEWPORT D3Dvp;
+			D3Dvp.Width = (float)systems.pEyeRenderViewport[eye].Size.w;    D3Dvp.Height = (float)systems.pEyeRenderViewport[eye].Size.h;
+			D3Dvp.MinDepth = 0;   D3Dvp.MaxDepth = 1;
+			D3Dvp.TopLeftX = (float)systems.pEyeRenderViewport[eye].Pos.x; D3Dvp.TopLeftY = (float)systems.pEyeRenderViewport[eye].Pos.y;
+			systems.pD3DContext->RSSetViewports(1, &D3Dvp);
+			//Get the pose information from the rift in XM format
+			XMVECTOR eyeQuat = XMVectorSet(EyeRenderPose[eye].Orientation.x, EyeRenderPose[eye].Orientation.y,
+				EyeRenderPose[eye].Orientation.z, EyeRenderPose[eye].Orientation.w);
+			XMVECTOR eyePos = XMVectorSet(EyeRenderPose[eye].Position.x, EyeRenderPose[eye].Position.y, EyeRenderPose[eye].Position.z, 0);
+
+			// Get view and projection matrices for the Rift camera
+			SimpleMath::Quaternion camRot;
+			m4x4::Transform(systems.pCamera->viewMatrix, camRot);
+			//calculate combined vectors of the main camera and oculus eyes
+			XMVECTOR combinedPos = XMVectorAdd(XMLoadFloat3(&systems.pCamera->eye), XMVector3Rotate(eyePos, camRot));
+			XMVECTOR combinedRot = XMQuaternionMultiply(eyeQuat, camRot);
+			//create a camera for each eye
+			Camera finalCam;
+			finalCam.eye = combinedPos;
+			//rotate by the main camera
+			finalCam.forward = XMVector3Rotate(finalCam.forward, combinedRot);
+			finalCam.up = XMVector3Rotate(finalCam.up, combinedRot);
+			finalCam.right = XMVector3Rotate(finalCam.right, combinedRot);
+			finalCam.updateMatrices();
+			//generate oculus view and projection matrix
+			XMMATRIX view = finalCam.viewMatrix;
+			ovrMatrix4f p = ovrMatrix4f_Projection(eyeRenderDesc[eye].Fov, 0.2f, 1000.0f, ovrProjection_None);
+			posTimewarpProjectionDesc = ovrTimewarpProjectionDesc_FromProjection(p, ovrProjection_None);
+			//manually set projection matrix
+			XMMATRIX proj = XMMatrixSet(p.M[0][0], p.M[1][0], p.M[2][0], p.M[3][0],
+				p.M[0][1], p.M[1][1], p.M[2][1], p.M[3][1],
+				p.M[0][2], p.M[1][2], p.M[2][2], p.M[3][2],
+				p.M[0][3], p.M[1][3], p.M[2][3], p.M[3][3]);
+			//create the view projection matrix for application to models
+			XMMATRIX prod = XMMatrixMultiply(view, proj);
+
+			// Push Per Frame Data to GPU
+			push_constant_buffer(systems.pD3DContext, m_pPerFrameCB, m_perFrameCBData);
+
+			// Bind our set of shaders.
+			m_meshShader.bind(systems.pD3DContext);
+
+			// Bind Constant Buffers, to both PS and VS stages
+			ID3D11Buffer* buffers[] = { m_pPerFrameCB, m_pPerDrawCB };
+			systems.pD3DContext->VSSetConstantBuffers(0, 2, buffers);
+			systems.pD3DContext->PSSetConstantBuffers(0, 2, buffers);
+
+			// Bind a sampler state
+			ID3D11SamplerState* samplers[] = { m_pLinearMipSamplerState };
+			systems.pD3DContext->PSSetSamplers(0, 1, samplers);
+
+
+			constexpr f32 kGridSpacing = 1.5f;
+			constexpr u32 kNumInstances = 5;
+			constexpr u32 kNumModelTypes = 2;
+
+			for (u32 i = 0; i < kNumModelTypes; ++i)
 			{
-				// Compute MVP matrix.
-				m4x4 matWorld = m4x4::CreateTranslation(v3(j * kGridSpacing, i * kGridSpacing, 0.f));
-				m4x4 matMVP = matWorld * systems.pCamera->vpMatrix;
+				// Bind a mesh and texture.
+				m_meshArray[i].bind(systems.pD3DContext);
+				m_textures[0].bind(systems.pD3DContext, ShaderStage::kPixel, 0);
+				m_textures[1].bind(systems.pD3DContext, ShaderStage::kPixel, 1);
+
+				// Draw several instances
+				for (u32 j = 0; j < kNumInstances; ++j)
+				{
+					// Compute MVP matrix.
+					m4x4 matWorld = m4x4::CreateTranslation(v3(j * kGridSpacing, i * kGridSpacing, 0.f));
+					m4x4 matMVP = matWorld * prod;
 
 
-				// Update Per Draw Data
-				m_perDrawCBData.m_matMVP = matMVP.Transpose();
-				m_perDrawCBData.m_matWorld = matWorld.Transpose();
-				// Inverse transpose,  but since we didn't do any shearing or non-uniform scaling then we simple grab the upper 3x3 in the shader.
-				pack_upper_float3x3(m_perDrawCBData.m_matWorld, m_perDrawCBData.m_matNormal);
+					// Update Per Draw Data
+					m_perDrawCBData.m_matMVP = matMVP.Transpose();
+					m_perDrawCBData.m_matWorld = matWorld.Transpose();
+					// Inverse transpose,  but since we didn't do any shearing or non-uniform scaling then we simple grab the upper 3x3 in the shader.
+					pack_upper_float3x3(m_perDrawCBData.m_matWorld, m_perDrawCBData.m_matNormal);
 
-				// Push to GPU
-				push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);
+					// Push to GPU
+					push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);
 
-				// Draw the mesh.
-				m_meshArray[i].draw(systems.pD3DContext);
+					// Draw the mesh.
+					m_meshArray[i].draw(systems.pD3DContext);
+				}
 			}
+			// Commit rendering to the swap chain
+			systems.pEyeRenderTexture[eye]->Commit();
+		}
+		
+		// Initialize our single full screen Fov layer.
+		ovrLayerEyeFovDepth ld = {};
+		ld.Header.Type = ovrLayerType_EyeFovDepth;
+		ld.Header.Flags = 0;
+		ld.ProjectionDesc = posTimewarpProjectionDesc;
+		ld.SensorSampleTime = sensorSampleTime;
+
+		for (int eye = 0; eye < 2; ++eye)
+		{
+			ld.ColorTexture[eye] = systems.pEyeRenderTexture[eye]->TextureChain;
+			ld.DepthTexture[eye] = systems.pEyeRenderTexture[eye]->DepthTextureChain;
+			ld.Viewport[eye] = systems.pEyeRenderViewport[eye];
+			ld.Fov[eye] = hmdDesc.DefaultEyeFov[eye];
+			ld.RenderPose[eye] = EyeRenderPose[eye];
 		}
 
+		ovrLayerHeader* layers = &ld.Header;
+		result = ovr_SubmitFrame(*systems.pOvrSession, 0, nullptr, &layers, 1);
+		// exit the rendering loop if submit returns an error, will retry on ovrError_DisplayLost
+		if (!OVR_SUCCESS(result))
+			panicF("Fail Rendering Loop!");
 	}
 
 
