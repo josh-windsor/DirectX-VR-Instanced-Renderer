@@ -35,7 +35,7 @@ public:
 	{
 		m_position = v3(0.5f, 0.5f, 0.5f);
 		m_size = 1.0f;
-		systems.pCamera->eye = v3(5.f, 2.f, 7.f);
+		systems.pCamera->eye = v3(3.f, 1.5f, 3.f);
 		systems.pCamera->look_at(v3(3.f, 0.5f, 0.f));
 
 		// compile a set of shaders
@@ -55,10 +55,13 @@ public:
 
 		// Initialize a mesh from an .OBJ file
 		create_mesh_from_obj(systems.pD3DDevice, m_meshArray[1], "Assets/Models/WoodCrate/wc1.obj", 1.f);
+		create_mesh_from_obj(systems.pD3DDevice, m_meshArray[2], "Assets/Models/Plane/plane.obj", 4.f);
 
 		// Initialise some textures;
 		m_textures[0].init_from_dds(systems.pD3DDevice, "Assets/Models/WoodCrate/wc1_diffuse.dds");
 		m_textures[1].init_from_dds(systems.pD3DDevice, "Assets/Models/WoodCrate/wc1_normal.dds");
+		m_textures[2].init_from_dds(systems.pD3DDevice, "Assets/Models/Plane/brick_diffuse.dds");
+		m_textures[3].init_from_dds(systems.pD3DDevice, "Assets/Models/Plane/brick_normal.dds");
 
 		// We need a sampler state to define wrapping and mipmap parameters.
 		m_pLinearMipSamplerState = create_basic_sampler(systems.pD3DDevice, D3D11_TEXTURE_ADDRESS_WRAP);
@@ -182,7 +185,6 @@ public:
 			ID3D11SamplerState* samplers[] = { m_pLinearMipSamplerState };
 			systems.pD3DContext->PSSetSamplers(0, 1, samplers);
 
-
 			constexpr f32 kGridSpacing = 1.5f;
 			constexpr u32 kNumInstances = 5;
 			constexpr u32 kNumModelTypes = 2;
@@ -215,6 +217,28 @@ public:
 					m_meshArray[i].draw(systems.pD3DContext);
 				}
 			}
+			//Draw floor
+			{
+				m_meshArray[2].bind(systems.pD3DContext);
+				m_textures[2].bind(systems.pD3DContext, ShaderStage::kPixel, 0);
+				m_textures[3].bind(systems.pD3DContext, ShaderStage::kPixel, 1);
+
+				// Compute MVP matrix.
+				m4x4 matModel = m4x4::CreateTranslation(0.f, -0.5f, 0.f);
+				m4x4 matMVP = matModel * prod;
+
+				// Update Per Draw Data
+				m_perDrawCBData.m_matMVP = matMVP.Transpose();
+
+				// Push to GPU
+				push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);
+
+				// Draw the mesh.
+				m_meshArray[2].draw(systems.pD3DContext);
+
+			}
+
+
 			// Commit rendering to the swap chain
 			systems.pEyeRenderTexture[eye]->Commit();
 		}
@@ -259,8 +283,8 @@ private:
 
 	ShaderSet m_meshShader;
 	
-	Mesh m_meshArray[2];
-	Texture m_textures[2];
+	Mesh m_meshArray[3];
+	Texture m_textures[4];
 	ID3D11SamplerState* m_pLinearMipSamplerState = nullptr;
 
 	v3 m_position;
