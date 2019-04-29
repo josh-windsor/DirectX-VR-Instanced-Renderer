@@ -29,6 +29,7 @@ public:
 		m4x4 m_matMVP;
 		m4x4 m_matWorld;
 		v4 m_matNormal[3]; // because of structure packing rules this represents a float3x3 in HLSL.
+		m4x4 modelViewProj[2];
 	};
 
 	void on_init(SystemsInterface& systems) override
@@ -39,8 +40,12 @@ public:
 		systems.pCamera->look_at(v3(3.f, 0.5f, 0.f));
 
 		// compile a set of shaders
-		m_meshShader.init(systems.pD3DDevice
+		m_meshShader[0].init(systems.pD3DDevice
 			, ShaderSetDesc::Create_VS_PS("Assets/Shaders/NormalMappingShaders.fx", "VS_Mesh", "PS_Mesh")
+			, { VertexFormatTraits<MeshVertex>::desc, VertexFormatTraits<MeshVertex>::size }
+		);
+		m_meshShader[1].init(systems.pD3DDevice
+			, ShaderSetDesc::Create_VS_PS("Assets/Shaders/NormalMappingShaders.fx", "VS_Mesh_Instanced", "PS_Mesh")
 			, { VertexFormatTraits<MeshVertex>::desc, VertexFormatTraits<MeshVertex>::size }
 		);
 
@@ -122,7 +127,7 @@ public:
 		push_constant_buffer(systems.pD3DContext, m_pPerFrameCB, m_perFrameCBData);
 
 		// Bind our set of shaders.
-		m_meshShader.bind(systems.pD3DContext);
+		m_meshShader[0].bind(systems.pD3DContext);
 
 		// Bind Constant Buffers, to both PS and VS stages
 		ID3D11Buffer* buffers[] = { m_pPerFrameCB, m_pPerDrawCB };
@@ -189,11 +194,17 @@ public:
 
 	void RenderSceneInstanced(SystemsInterface& systems, XMMATRIX* prods)
 	{
+		// Update Per Frame Data.
+		m_perFrameCBData.m_matProjection = XMMatrixTranspose(*prods);
+		m_perFrameCBData.m_matView = XMMatrixTranspose(*prods);
+		m_perFrameCBData.m_time += 0.001f;
+		m_perFrameCBData.m_lightPos = v4(sin(m_perFrameCBData.m_time*5.0f) * 4.f + 3.0f, 1.f, 2.f, 0.f);
+
 		// Push Per Frame Data to GPU
 		push_constant_buffer(systems.pD3DContext, m_pPerFrameCB, m_perFrameCBData);
 
 		// Bind our set of shaders.
-		m_meshShader.bind(systems.pD3DContext);
+		m_meshShader[1].bind(systems.pD3DContext);
 
 		// Bind Constant Buffers, to both PS and VS stages
 		ID3D11Buffer* buffers[] = { m_pPerFrameCB, m_pPerDrawCB };
@@ -220,14 +231,14 @@ public:
 			{
 				// Compute MVP matrix.
 				m4x4 matWorld = m4x4::CreateTranslation(v3(j * kGridSpacing, i * kGridSpacing, 0.f));
-				m4x4 matMVP = matWorld * *prods;
 
+				m_perDrawCBData.modelViewProj[0] = (matWorld * prods[0]).Transpose();
+				m_perDrawCBData.modelViewProj[1] = (matWorld * prods[1]).Transpose();
 
 				// Update Per Draw Data
-				m_perDrawCBData.m_matMVP = matMVP.Transpose();
 				m_perDrawCBData.m_matWorld = matWorld.Transpose();
 				// Inverse transpose,  but since we didn't do any shearing or non-uniform scaling then we simple grab the upper 3x3 in the shader.
-				pack_upper_float3x3(m_perDrawCBData.m_matWorld, m_perDrawCBData.m_matNormal);
+				pack_upper_float3x3(m_perDrawCBData.m_matMVP, m_perDrawCBData.m_matNormal);
 
 				// Push to GPU
 				push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);
@@ -248,6 +259,8 @@ public:
 
 			// Update Per Draw Data
 			m_perDrawCBData.m_matMVP = matMVP.Transpose();
+			m_perDrawCBData.modelViewProj[0] = XMMatrixMultiply(matModel, prods[0]);
+			m_perDrawCBData.modelViewProj[1] = XMMatrixMultiply(matModel, prods[1]);
 
 			// Push to GPU
 			push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);
@@ -409,7 +422,7 @@ private:
 	PerDrawCBData m_perDrawCBData;
 	ID3D11Buffer* m_pPerDrawCB = nullptr;
 
-	ShaderSet m_meshShader;
+	ShaderSet m_meshShader[2];
 	
 	Mesh m_meshArray[3];
 	Texture m_textures[4];
