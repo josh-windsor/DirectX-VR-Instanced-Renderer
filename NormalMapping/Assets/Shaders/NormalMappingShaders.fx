@@ -85,7 +85,7 @@ float4 PS_Mesh(VertexOutput input) : SV_TARGET
 	// build our per fragment TBN matrix.
 	float3 N = normalize(input.normal);
 	float3 T = normalize(input.tangent.xyz);
-	float fSign = input.tangent.w;
+	float fSign = 1.f; // input.tangent.w;
 	float3x3 matTBN = construct_TBN_matrix(N,T,fSign);
 	
 	// Grab the tangent space normal from the normal map
