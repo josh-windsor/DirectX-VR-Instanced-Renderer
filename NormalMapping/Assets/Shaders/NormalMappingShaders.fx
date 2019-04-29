@@ -18,6 +18,12 @@ cbuffer PerDrawCB : register(b1)
 	float4x4 matWorld;
 	float3x3 matNormal; // e.g. inverse transpose (upper 3x3 of the world)
 };
+cbuffer PerDrawCBInst : register(b2)
+{
+	float4x4 matMVPInst[2];
+	float4x4 matWorldInst[2];
+	float3x3 matNormalInst[2]; // e.g. inverse transpose (upper 3x3 of the world)
+};
 
 Texture2D texDiffuse : register(t0);
 Texture2D texNormal : register(t1);
@@ -32,6 +38,15 @@ struct VertexInput
 	float3 normal : NORMAL;
 	float4 tangent : TANGENT;
 	float2 uv : TEXCOORD;
+};
+struct VertexInstancedInput
+{
+	float3 pos   : POSITION;
+	float4 color : COLOUR;
+	float3 normal : NORMAL;
+	float4 tangent : TANGENT;
+	float2 uv : TEXCOORD;
+	uint   instanceID : SV_InstanceID;
 };
 
 struct VertexOutput
@@ -73,6 +88,27 @@ VertexOutput VS_Mesh(VertexInput input)
 
 	return output;
 }
+
+VertexOutput VS_Mesh_Instanced(VertexInstancedInput input)
+{
+	VertexOutput output;
+	const float4 EyeClipPlane[2] = { { -1, 0, 0, 0 }, { 1, 0, 0, 0 } };
+	uint eyeIndex = input.instanceID & 1;
+	// transform to clip space for correct eye (includes offset and scale)
+	output.vpos = mul(input.pos, matMVPInst[eyeIndex]);
+	output.pos_ws = mul(input.pos, matWorldInst[eyeIndex]).xyz;
+	output.color = input.color;
+
+	// Transform the normals and tangent.
+	output.normal = mul(input.normal, matNormalInst[eyeIndex]);
+	output.tangent.xyz = mul(input.tangent.xyz, matNormalInst[eyeIndex]);
+	output.tangent.w = input.tangent.w; // sign is encoded pass through
+
+	output.uv = input.uv;
+
+	return output;
+}
+
 
 float4 PS_Mesh(VertexOutput input) : SV_TARGET
 {

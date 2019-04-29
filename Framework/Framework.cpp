@@ -22,6 +22,12 @@
 #include <OVR_CAPI.h>
 #include "OVR_CAPI_D3D.h"
 
+bool stereoToggle = false;
+#ifndef max
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
+
+
 // ========================================================
 // IMGUI
 // ========================================================
@@ -327,8 +333,8 @@ public:
 	ComPtr<ID3D11RenderTargetView> m_pRenderTargetView;
 	ComPtr<ID3D11DepthStencilState> m_pDepthStencilState;
 	ovrSession m_pOvrSession;
-	ovrRecti m_pOvrEyeRenderViewport[2];
-	OculusTexture* m_pOvrEyeRenderTexture[2] = { nullptr, nullptr };
+	ovrRecti* m_pOvrEyeRenderViewport[2];
+	OculusTexture* m_pOvrEyeRenderTexture = nullptr;
 
 
 	std::function<void()>          m_pRenderCallback;
@@ -471,24 +477,36 @@ private:
 
 		//oculus hmd setup
 		ovrHmdDesc hmdDesc = ovr_GetHmdDesc(m_pOvrSession);
-		// Make the eye render buffers (caution if actual size < requested due to HW limits).
-		for (int eye = 0; eye < 2; ++eye)
+		// Make a single eye texture
 		{
-			ovrSizei idealSize = ovr_GetFovTextureSize(m_pOvrSession, (ovrEyeType)eye, hmdDesc.DefaultEyeFov[eye], 1.0f);
-			m_pOvrEyeRenderTexture[eye] = new OculusTexture();
-			if (!m_pOvrEyeRenderTexture[eye]->Init(m_pOvrSession, idealSize.w, idealSize.h, msaaRate, true, m_pD3DDevice.Get()))
+			ovrSizei eyeTexSizeL = ovr_GetFovTextureSize(m_pOvrSession, ovrEye_Left, hmdDesc.DefaultEyeFov[0], 1.0f);
+			ovrSizei eyeTexSizeR = ovr_GetFovTextureSize(m_pOvrSession, ovrEye_Right, hmdDesc.DefaultEyeFov[1], 1.0f);
+			ovrSizei textureSize;
+			textureSize.w = eyeTexSizeL.w + eyeTexSizeR.w;
+			textureSize.h = max(eyeTexSizeL.h, eyeTexSizeR.h);
+
+			m_pOvrEyeRenderTexture = new OculusTexture();
+			if (!m_pOvrEyeRenderTexture->Init(m_pOvrSession, textureSize.w, textureSize.h, 1, true, m_pD3DDevice.Get()))
 			{
 				panicF("Failed to create eye texture.");
 			}
-			m_pOvrEyeRenderViewport[eye].Pos.x = 0;
-			m_pOvrEyeRenderViewport[eye].Pos.y = 0;
-			m_pOvrEyeRenderViewport[eye].Size = idealSize;
-			if (!m_pOvrEyeRenderTexture[eye]->TextureChain || !m_pOvrEyeRenderTexture[eye]->DepthTextureChain)
-			{
-				panicF("Failed to create texture.");
-			}
+
+			// set viewports
+			m_pOvrEyeRenderViewport[0] = new ovrRecti();
+			m_pOvrEyeRenderViewport[0]->Pos.x = 0;
+			m_pOvrEyeRenderViewport[0]->Pos.y = 0;
+			m_pOvrEyeRenderViewport[0]->Size = eyeTexSizeL;
+
+			m_pOvrEyeRenderViewport[1] = new ovrRecti();
+			m_pOvrEyeRenderViewport[1]->Pos.x = eyeTexSizeL.w;
+			m_pOvrEyeRenderViewport[1]->Pos.y = 0;
+			m_pOvrEyeRenderViewport[1]->Size = eyeTexSizeR;
 		}
 
+		if (!m_pOvrEyeRenderTexture->TextureChain)
+		{
+			panicF("Failed to create texture.");
+		}
 
 	}
 
@@ -1206,6 +1224,7 @@ static void inputUpdate(const Window & win)
 	keys.sDown = testKeyPressed('S') || testKeyPressed(VK_DOWN);
 	keys.aDown = testKeyPressed('A') || testKeyPressed(VK_LEFT);
 	keys.dDown = testKeyPressed('D') || testKeyPressed(VK_RIGHT);
+	keys.vDown = testKeyPressed('V');
 
 	// Mouse buttons:
 	mouse.leftButtonDown = testKeyPressed(VK_LBUTTON);
@@ -1238,9 +1257,9 @@ int framework_main(FrameworkApp& rApp, const char* pTitleString, HINSTANCE hInst
 	systems.pD3DContext = renderWindow.m_pDeviceContext.Get();
 	systems.pSwapRenderTarget = renderWindow.m_pRenderTargetView.Get();
 	systems.pOvrSession = &renderWindow.m_pOvrSession;
-	systems.pEyeRenderViewport = renderWindow.m_pOvrEyeRenderViewport;
-	systems.pEyeRenderTexture[0] = renderWindow.m_pOvrEyeRenderTexture[0];
-	systems.pEyeRenderTexture[1] = renderWindow.m_pOvrEyeRenderTexture[1];
+	systems.pEyeRenderViewport[0] = renderWindow.m_pOvrEyeRenderViewport[0];
+	systems.pEyeRenderViewport[1] = renderWindow.m_pOvrEyeRenderViewport[1];
+	systems.pEyeRenderTexture = renderWindow.m_pOvrEyeRenderTexture;
 	systems.pCamera = &camera;
 	systems.width = Window::s_width;
 	systems.height = Window::s_height;
@@ -1301,6 +1320,19 @@ int framework_main(FrameworkApp& rApp, const char* pTitleString, HINSTANCE hInst
 			camera.checkKeyboardMovement();
 			camera.checkMouseRotation();
 		}
+		if (keys.vDown)
+		{
+			if (stereoToggle)
+			{
+				systems.stereo = !systems.stereo;
+				stereoToggle = false;
+			}
+		}
+		else
+		{
+			stereoToggle = true;
+		}
+
 
 		camera.updateMatrices();
 

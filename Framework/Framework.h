@@ -28,6 +28,7 @@ struct Keys
 	bool sDown;
 	bool aDown;
 	bool dDown;
+	bool vDown;
 	// Flags:
 	bool showLabels; // True if object labels are drawn. Toggle with the space bar.
 	bool showGrid;   // True if the ground grid is drawn. Toggle with the return key.
@@ -132,13 +133,14 @@ struct SystemsInterface
 
 	//Oculus stuff
 	ovrSession* pOvrSession;
-	ovrRecti* pEyeRenderViewport;
-	OculusTexture* pEyeRenderTexture[2];
+	ovrRecti* pEyeRenderViewport[2];
+	OculusTexture* pEyeRenderTexture;
 
 	dd::ContextHandle pDebugDrawContext;
 	Camera* pCamera;
 	u32 width;
 	u32 height;
+	bool stereo;
 };
 
 // ========================================================
