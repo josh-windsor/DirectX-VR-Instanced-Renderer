@@ -9,7 +9,7 @@ cbuffer PerFrameCB : register(b0)
 	matrix matView;
 	float4 lightPos;
 	float  time;
-	float  padding[3];
+	float  paddingFrame[3];
 };
 
 cbuffer PerDrawCB : register(b1)
@@ -18,6 +18,9 @@ cbuffer PerDrawCB : register(b1)
 	float4x4 matWorld;
 	float3x3 matNormal; // e.g. inverse transpose (upper 3x3 of the world)
 	float4x4 modelViewProj[2];
+	float    tileFactor;
+	float    paddingDraw[3];
+
 };
 
 Texture2D texDiffuse : register(t0);
@@ -74,7 +77,7 @@ VertexOutput VS_Mesh(VertexInput input)
 	output.tangent.xyz = mul(input.tangent.xyz, matNormal);
 	output.tangent.w = input.tangent.w; // sign is encoded pass through
 
-	output.uv = input.uv;
+	output.uv = input.uv * tileFactor;
 
 	return output;
 }
@@ -97,7 +100,7 @@ VertexOutput VS_Mesh_Instanced(VertexInput input)
 	output.tangent.xyz = mul(input.tangent.xyz, matNormal);
 	output.tangent.w = input.tangent.w; // sign is encoded pass through
 
-	output.uv = input.uv;
+	output.uv = input.uv * tileFactor;
 
 	return output;
 }
