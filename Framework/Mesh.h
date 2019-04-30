@@ -20,7 +20,7 @@ public:
 	void init_buffers(ID3D11Device* pDevice, const MeshVertex* pVertices, const u32 kNumVerts, const u16* pIndices, const u32 kNumIndices);
 	void bind(ID3D11DeviceContext* pContext) const;
 	void draw(ID3D11DeviceContext* pContext) const;
-	void drawIndexedIndexed(ID3D11DeviceContext* pContext) const;
+	void drawIndexedInstanced(ID3D11DeviceContext* pContext) const;
 
 	// Accessors.
 	const ID3D11Buffer* vertex_buffer() const { return m_pVertexBuffer; }

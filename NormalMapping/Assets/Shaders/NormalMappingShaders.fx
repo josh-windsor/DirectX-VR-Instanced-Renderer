@@ -18,8 +18,8 @@ cbuffer PerDrawCB : register(b1)
 	float4x4 matWorld;
 	float3x3 matNormal; // e.g. inverse transpose (upper 3x3 of the world)
 	float4x4 modelViewProj[2];
-	float    tileFactor;
-	float    paddingDraw[3];
+	uint    tileFactor;
+	uint    paddingDraw[3];
 
 };
 

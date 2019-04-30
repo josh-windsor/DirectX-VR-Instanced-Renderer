@@ -19,19 +19,19 @@ public:
 	{
 		m4x4 m_matProjection;
 		m4x4 m_matView;
-		v4 m_lightPos;
-		f32		m_time;
-		f32     m_padding[3];
+		v4   m_lightPos;
+		f32  m_time;
+		f32  m_padding[3];
 	};
 
 	struct PerDrawCBData
 	{
 		m4x4 m_matMVP;
 		m4x4 m_matWorld;
-		v4 m_matNormal[3]; // because of structure packing rules this represents a float3x3 in HLSL.
+		v4   m_matNormal[3]; // because of structure packing rules this represents a float3x3 in HLSL.
 		m4x4 m_modelViewProj[2];
-		f32 m_tileFactor;
-		f32     m_padding[3];
+		UINT m_tileFactor;
+		UINT m_padding[3];
 
 	};
 
@@ -115,6 +115,8 @@ public:
 	}
 
 
+	//render the scene to the headset
+	//prod will be a single viewproj matrix for each eye or both for stereo
 	void RenderScene(SystemsInterface& systems, XMMATRIX* prod, bool renderStereo)
 	{
 		// Update Per Frame Data.
@@ -154,7 +156,6 @@ public:
 			for (u32 j = 0; j < kNumInstances; ++j)
 			{
 				// Compute MVP matrix.
-
 				m4x4 matWorld = m4x4::CreateTranslation(v3(j * kGridSpacing, i * kGridSpacing, 0.f));
 				if (renderStereo)
 				{
@@ -180,7 +181,7 @@ public:
 				// Draw the mesh.
 				if (renderStereo)
 				{
-					m_meshArray[i].drawIndexedIndexed(systems.pD3DContext);
+					m_meshArray[i].drawIndexedInstanced(systems.pD3DContext);
 				}
 				else
 				{
@@ -189,6 +190,7 @@ public:
 
 			}
 		}
+
 		//Draw floor
 		{
 			m_meshArray[2].bind(systems.pD3DContext);
@@ -221,7 +223,7 @@ public:
 			// Draw the mesh.
 			if (renderStereo)
 			{
-				m_meshArray[2].drawIndexedIndexed(systems.pD3DContext);
+				m_meshArray[2].drawIndexedInstanced(systems.pD3DContext);
 			}
 			else
 			{
