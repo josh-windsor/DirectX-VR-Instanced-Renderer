@@ -83,7 +83,7 @@ VertexOutput VS_Mesh_Instanced(VertexInput input)
 	uint eyeIndex = input.instanceID & 1;
 	// transform to clip space for correct eye (includes offset and scale)
 	output.vpos = mul(float4(input.pos, 1.0f), modelViewProj[eyeIndex]);
-	output.pos_ws = mul(float4(input.pos, 1.0f), modelViewProj[eyeIndex]).xyz;
+	output.pos_ws = mul(float4(input.pos, 1.0f), matWorld).xyz;
 	output.color = input.color;
 
 	// Transform the normals and tangent.
