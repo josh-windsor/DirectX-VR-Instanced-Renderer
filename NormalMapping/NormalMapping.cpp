@@ -86,8 +86,6 @@ public:
 		// This function displays some useful debugging values, camera positions etc.
 		DemoFeatures::editorHud(systems.pDebugDrawContext);
 
-		ImGui::SliderFloat3("Position", (float*)&m_position, -1.f, 1.f);
-		ImGui::SliderFloat("Size", &m_size, 0.1f, 10.f);
 
 	}
 

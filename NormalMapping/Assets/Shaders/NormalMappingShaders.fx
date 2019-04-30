@@ -44,6 +44,8 @@ struct VertexOutput
 	float4 tangent : TANGENT;
 	float2 uv : TEXCOORD;
 	float3 pos_ws : POSITION_WS;
+	float  clipDist : SV_ClipDistance0;
+	float  cullDist : SV_CullDistance0;
 };
 
 // Sample the normal map and decode
@@ -64,6 +66,7 @@ VertexOutput VS_Mesh(VertexInput input)
 	VertexOutput output;
 	output.vpos  = mul(float4(input.pos, 1.0f), matMVP);
 	output.pos_ws = mul(float4(input.pos, 1.0f), matWorld).xyz;
+	output.cullDist = output.clipDist = 0.f;
 	output.color = input.color;
 
 	// Transform the normals and tangent.
@@ -84,6 +87,8 @@ VertexOutput VS_Mesh_Instanced(VertexInput input)
 	// transform to clip space for correct eye (includes offset and scale)
 	output.vpos = mul(float4(input.pos, 1.0f), modelViewProj[eyeIndex]);
 	output.pos_ws = mul(float4(input.pos, 1.0f), matWorld).xyz;
+	output.cullDist = output.clipDist = dot(EyeClipPlane[eyeIndex], output.vpos);
+
 	output.color = input.color;
 
 	// Transform the normals and tangent.
