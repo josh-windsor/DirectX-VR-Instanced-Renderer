@@ -239,8 +239,7 @@ public:
 				m_perDrawCBData.modelViewProj[1] = (matWorld * prods[1]).Transpose();
 
 				// Inverse transpose,  but since we didn't do any shearing or non-uniform scaling then we simple grab the upper 3x3 in the shader.
-				pack_upper_float3x3(m_perDrawCBData.modelViewProj[0], m_perDrawCBData.m_matNormal);
-				pack_upper_float3x3(m_perDrawCBData.modelViewProj[1], m_perDrawCBData.m_matNormal);
+				pack_upper_float3x3(m_perDrawCBData.m_matWorld, m_perDrawCBData.m_matNormal);
 
 				// Push to GPU
 				push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);
@@ -264,8 +263,7 @@ public:
 			m_perDrawCBData.modelViewProj[1] = (matWorld * prods[1]).Transpose();
 
 			// Inverse transpose,  but since we didn't do any shearing or non-uniform scaling then we simple grab the upper 3x3 in the shader.
-			pack_upper_float3x3(m_perDrawCBData.modelViewProj[0], m_perDrawCBData.m_matNormal);
-			pack_upper_float3x3(m_perDrawCBData.modelViewProj[1], m_perDrawCBData.m_matNormal);
+			pack_upper_float3x3(m_perDrawCBData.m_matWorld, m_perDrawCBData.m_matNormal);
 
 			// Push to GPU
 			push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);

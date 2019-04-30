@@ -66,7 +66,7 @@ VertexOutput VS_Mesh(VertexInput input)
 	VertexOutput output;
 	output.vpos  = mul(float4(input.pos, 1.0f), matMVP);
 	output.pos_ws = mul(float4(input.pos, 1.0f), matWorld).xyz;
-	output.cullDist = output.clipDist = 0.f;
+	output.cullDist = output.clipDist = 0.5f;
 	output.color = input.color;
 
 	// Transform the normals and tangent.
@@ -87,6 +87,7 @@ VertexOutput VS_Mesh_Instanced(VertexInput input)
 	// transform to clip space for correct eye (includes offset and scale)
 	output.vpos = mul(float4(input.pos, 1.0f), modelViewProj[eyeIndex]);
 	output.pos_ws = mul(float4(input.pos, 1.0f), matWorld).xyz;
+	// calculate distance from left/right clip plane
 	output.cullDist = output.clipDist = dot(EyeClipPlane[eyeIndex], output.vpos);
 
 	output.color = input.color;
@@ -113,7 +114,7 @@ float4 PS_Mesh(VertexOutput input) : SV_TARGET
 	// build our per fragment TBN matrix.
 	float3 N = normalize(input.normal);
 	float3 T = normalize(input.tangent.xyz);
-	float fSign = 1.f; // input.tangent.w;
+	float fSign = input.tangent.w;
 	float3x3 matTBN = construct_TBN_matrix(N,T,fSign);
 	
 	// Grab the tangent space normal from the normal map
