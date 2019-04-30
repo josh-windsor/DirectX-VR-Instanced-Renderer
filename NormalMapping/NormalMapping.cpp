@@ -177,11 +177,15 @@ public:
 			m_textures[3].bind(systems.pD3DContext, ShaderStage::kPixel, 1);
 
 			// Compute MVP matrix.
-			m4x4 matModel = m4x4::CreateTranslation(0.f, -0.5f, 0.f);
-			m4x4 matMVP = matModel * prod;
+			m4x4 matWorld = m4x4::CreateTranslation(0.f, -0.5f, 0.f);
+			m4x4 matMVP = matWorld * prod;
 
 			// Update Per Draw Data
 			m_perDrawCBData.m_matMVP = matMVP.Transpose();
+			m_perDrawCBData.m_matWorld = matWorld.Transpose();
+
+
+			pack_upper_float3x3(m_perDrawCBData.m_matWorld, m_perDrawCBData.m_matNormal);
 
 			// Push to GPU
 			push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);
@@ -232,13 +236,13 @@ public:
 				// Compute MVP matrix.
 				m4x4 matWorld = m4x4::CreateTranslation(v3(j * kGridSpacing, i * kGridSpacing, 0.f));
 
+				m_perDrawCBData.m_matWorld = matWorld.Transpose();
 				m_perDrawCBData.modelViewProj[0] = (matWorld * prods[0]).Transpose();
 				m_perDrawCBData.modelViewProj[1] = (matWorld * prods[1]).Transpose();
 
-				// Update Per Draw Data
-				m_perDrawCBData.m_matWorld = matWorld.Transpose();
 				// Inverse transpose,  but since we didn't do any shearing or non-uniform scaling then we simple grab the upper 3x3 in the shader.
-				pack_upper_float3x3(m_perDrawCBData.m_matMVP, m_perDrawCBData.m_matNormal);
+				pack_upper_float3x3(m_perDrawCBData.modelViewProj[0], m_perDrawCBData.m_matNormal);
+				pack_upper_float3x3(m_perDrawCBData.modelViewProj[1], m_perDrawCBData.m_matNormal);
 
 				// Push to GPU
 				push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);
@@ -260,6 +264,10 @@ public:
 			m_perDrawCBData.m_matWorld = matWorld.Transpose();
 			m_perDrawCBData.modelViewProj[0] = (matWorld * prods[0]).Transpose();
 			m_perDrawCBData.modelViewProj[1] = (matWorld * prods[1]).Transpose();
+
+			// Inverse transpose,  but since we didn't do any shearing or non-uniform scaling then we simple grab the upper 3x3 in the shader.
+			pack_upper_float3x3(m_perDrawCBData.modelViewProj[0], m_perDrawCBData.m_matNormal);
+			pack_upper_float3x3(m_perDrawCBData.modelViewProj[1], m_perDrawCBData.m_matNormal);
 
 			// Push to GPU
 			push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);
