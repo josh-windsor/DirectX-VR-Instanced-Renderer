@@ -40,7 +40,7 @@ public:
 		m_position = v3(0.5f, 0.5f, 0.5f);
 		m_size = 1.0f;
 		systems.pCamera->eye = v3(3.f, 1.5f, 3.f);
-		systems.pCamera->look_at(v3(3.f, 0.5f, 0.f));
+		systems.pCamera->look_at(v3(3.f, 1.5f, 0.f));
 
 		// compile a set of shaders
 		m_meshShader[0].init(systems.pD3DDevice
@@ -63,13 +63,19 @@ public:
 
 		// Initialize a mesh from an .OBJ file
 		create_mesh_from_obj(systems.pD3DDevice, m_meshArray[1], "Assets/Models/WoodCrate/wc1.obj", 1.f);
-		create_mesh_from_obj(systems.pD3DDevice, m_meshArray[2], "Assets/Models/Plane/plane.obj", 1.f);
+		create_mesh_from_obj(systems.pD3DDevice, m_meshArray[2], "Assets/Models/Plane/plane.obj", 2.f);
+		create_mesh_from_obj(systems.pD3DDevice, m_meshArray[3], "Assets/Models/House/house.obj", 0.006f);
+		create_mesh_from_obj(systems.pD3DDevice, m_meshArray[4], "Assets/Models/Bus/bus.obj", 0.1f);
 
 		// Initialise some textures;
 		m_textures[0].init_from_dds(systems.pD3DDevice, "Assets/Models/WoodCrate/wc1_diffuse.dds");
 		m_textures[1].init_from_dds(systems.pD3DDevice, "Assets/Models/WoodCrate/wc1_normal.dds");
 		m_textures[2].init_from_dds(systems.pD3DDevice, "Assets/Models/Plane/brick_diffuse.dds");
 		m_textures[3].init_from_dds(systems.pD3DDevice, "Assets/Models/Plane/brick_normal.dds");
+		m_textures[4].init_from_dds(systems.pD3DDevice, "Assets/Models/House/house_diffuse.dds");
+		m_textures[5].init_from_dds(systems.pD3DDevice, "Assets/Models/House/house_normal.dds");
+		m_textures[6].init_from_dds(systems.pD3DDevice, "Assets/Models/Bus/bus_diffuse.dds");
+		m_textures[7].init_from_dds(systems.pD3DDevice, "Assets/Models/Bus/bus_normal.dds");
 
 		// We need a sampler state to define wrapping and mipmap parameters.
 		m_pLinearMipSamplerState = create_basic_sampler(systems.pD3DDevice, D3D11_TEXTURE_ADDRESS_WRAP);
@@ -156,7 +162,7 @@ public:
 			for (u32 j = 0; j < kNumInstances; ++j)
 			{
 				// Compute MVP matrix.
-				m4x4 matWorld = m4x4::CreateTranslation(v3(j * kGridSpacing, i * kGridSpacing, 0.f));
+				m4x4 matWorld = m4x4::CreateTranslation(v3(j * kGridSpacing, i * kGridSpacing, -3.f));
 				if (renderStereo)
 				{
 					m_perDrawCBData.m_modelViewProj[0] = (matWorld * prod[0]).Transpose();
@@ -212,7 +218,7 @@ public:
 
 			// Update Per Draw Data
 			m_perDrawCBData.m_matWorld = matWorld.Transpose();
-			m_perDrawCBData.m_tileFactor = 5;
+			m_perDrawCBData.m_tileFactor = 9;
 
 
 			pack_upper_float3x3(m_perDrawCBData.m_matWorld, m_perDrawCBData.m_matNormal);
@@ -231,6 +237,87 @@ public:
 			}
 
 		}
+		//Draw house
+		{
+			m_meshArray[3].bind(systems.pD3DContext);
+			m_textures[4].bind(systems.pD3DContext, ShaderStage::kPixel, 0);
+			m_textures[5].bind(systems.pD3DContext, ShaderStage::kPixel, 1);
+
+
+			m4x4 matWorld = m4x4::CreateTranslation(4.f, -0.5f, 2.f) * m4x4::CreateRotationY(degToRad(-90));
+			if (renderStereo)
+			{
+				m_perDrawCBData.m_modelViewProj[0] = (matWorld * prod[0]).Transpose();
+				m_perDrawCBData.m_modelViewProj[1] = (matWorld * prod[1]).Transpose();
+			}
+			else
+			{
+				m4x4 matMVP = matWorld * *prod;
+				m_perDrawCBData.m_matMVP = matMVP.Transpose();
+			}
+
+			// Update Per Draw Data
+			m_perDrawCBData.m_matWorld = matWorld.Transpose();
+			m_perDrawCBData.m_tileFactor = 1;
+
+
+			pack_upper_float3x3(m_perDrawCBData.m_matWorld, m_perDrawCBData.m_matNormal);
+
+			// Push to GPU
+			push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);
+
+			// Draw the mesh.
+			if (renderStereo)
+			{
+				m_meshArray[3].drawIndexedInstanced(systems.pD3DContext);
+			}
+			else
+			{
+				m_meshArray[3].draw(systems.pD3DContext);
+			}
+
+		}
+		//Draw bus
+		{
+			m_meshArray[4].bind(systems.pD3DContext);
+			m_textures[6].bind(systems.pD3DContext, ShaderStage::kPixel, 0);
+			m_textures[7].bind(systems.pD3DContext, ShaderStage::kPixel, 1);
+
+
+			m4x4 matWorld = m4x4::CreateTranslation(7.f, -0.5f, 2.f);
+			if (renderStereo)
+			{
+				m_perDrawCBData.m_modelViewProj[0] = (matWorld * prod[0]).Transpose();
+				m_perDrawCBData.m_modelViewProj[1] = (matWorld * prod[1]).Transpose();
+			}
+			else
+			{
+				m4x4 matMVP = matWorld * *prod;
+				m_perDrawCBData.m_matMVP = matMVP.Transpose();
+			}
+
+			// Update Per Draw Data
+			m_perDrawCBData.m_matWorld = matWorld.Transpose();
+			m_perDrawCBData.m_tileFactor = 1;
+
+
+			pack_upper_float3x3(m_perDrawCBData.m_matWorld, m_perDrawCBData.m_matNormal);
+
+			// Push to GPU
+			push_constant_buffer(systems.pD3DContext, m_pPerDrawCB, m_perDrawCBData);
+
+			// Draw the mesh.
+			if (renderStereo)
+			{
+				m_meshArray[4].drawIndexedInstanced(systems.pD3DContext);
+			}
+			else
+			{
+				m_meshArray[4].draw(systems.pD3DContext);
+			}
+
+		}
+
 	}
 
 	void on_render(SystemsInterface& systems) override
@@ -385,8 +472,8 @@ private:
 
 	ShaderSet m_meshShader[2];
 	
-	Mesh m_meshArray[3];
-	Texture m_textures[4];
+	Mesh m_meshArray[5];
+	Texture m_textures[8];
 	ID3D11SamplerState* m_pLinearMipSamplerState = nullptr;
 
 	v3 m_position;

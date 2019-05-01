@@ -1316,10 +1316,11 @@ int framework_main(FrameworkApp& rApp, const char* pTitleString, HINSTANCE hInst
 		systems.height = renderWindow.s_height;
 
 
-		if (mouse.rightButtonDown) {
-			camera.checkKeyboardMovement();
-			camera.checkMouseRotation();
-		}
+		//if (mouse.rightButtonDown) {
+		//	camera.checkMouseRotation();
+		//}
+		camera.checkKeyboardMovement();
+
 		if (keys.vDown)
 		{
 			if (stereoToggle)
