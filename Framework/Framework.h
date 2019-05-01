@@ -29,6 +29,13 @@ struct Keys
 	bool aDown;
 	bool dDown;
 	bool vDown;
+	bool oneDown;
+	bool twoDown;
+	bool threeDown;
+	bool fourDown;
+	bool fiveDown;
+	bool sixDown;
+	bool zeroDown;
 	// Flags:
 	bool showLabels; // True if object labels are drawn. Toggle with the space bar.
 	bool showGrid;   // True if the ground grid is drawn. Toggle with the return key.

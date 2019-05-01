@@ -357,7 +357,7 @@ public:
 		{
 			m_pRenderCallback();
 		}	
-		m_pSwapChain->Present(1, 0); // use VSYNC
+		m_pSwapChain->Present(0, 0); // use VSYNC
 	}
 
 	void onResize() override
@@ -507,7 +507,6 @@ private:
 		{
 			panicF("Failed to create texture.");
 		}
-
 	}
 
 	void SetupRenderTarget(const UINT width, const UINT height)
@@ -1225,6 +1224,13 @@ static void inputUpdate(const Window & win)
 	keys.aDown = testKeyPressed('A') || testKeyPressed(VK_LEFT);
 	keys.dDown = testKeyPressed('D') || testKeyPressed(VK_RIGHT);
 	keys.vDown = testKeyPressed('V');
+	keys.oneDown = testKeyPressed('1');
+	keys.twoDown = testKeyPressed('2');
+	keys.threeDown = testKeyPressed('3');
+	keys.fourDown = testKeyPressed('4');
+	keys.fiveDown = testKeyPressed('5');
+	keys.sixDown = testKeyPressed('6');
+	keys.zeroDown = testKeyPressed('0');
 
 	// Mouse buttons:
 	mouse.leftButtonDown = testKeyPressed(VK_LBUTTON);
@@ -1321,6 +1327,7 @@ int framework_main(FrameworkApp& rApp, const char* pTitleString, HINSTANCE hInst
 		//}
 		camera.checkKeyboardMovement();
 
+		//handle toggling stereo on & off
 		if (keys.vDown)
 		{
 			if (stereoToggle)
@@ -1332,6 +1339,35 @@ int framework_main(FrameworkApp& rApp, const char* pTitleString, HINSTANCE hInst
 		else
 		{
 			stereoToggle = true;
+		}
+
+		//handle showing performance statistics
+		if (keys.oneDown)
+		{
+			ovr_SetInt(*systems.pOvrSession, OVR_PERF_HUD_MODE, (int)ovrPerfHud_PerfSummary);
+		} else if (keys.twoDown)
+		{
+			ovr_SetInt(*systems.pOvrSession, OVR_PERF_HUD_MODE, (int)ovrPerfHud_LatencyTiming);
+		}
+		else if (keys.threeDown)
+		{
+			ovr_SetInt(*systems.pOvrSession, OVR_PERF_HUD_MODE, (int)ovrPerfHud_AppRenderTiming);
+		}
+		else if (keys.fourDown)
+		{
+			ovr_SetInt(*systems.pOvrSession, OVR_PERF_HUD_MODE, (int)ovrPerfHud_CompRenderTiming);
+		}
+		else if (keys.fiveDown)
+		{
+			ovr_SetInt(*systems.pOvrSession, OVR_PERF_HUD_MODE, (int)ovrPerfHud_AswStats);
+		}
+		else if (keys.sixDown)
+		{
+			ovr_SetInt(*systems.pOvrSession, OVR_PERF_HUD_MODE, (int)ovrPerfHud_VersionInfo);
+		}
+		else if (keys.zeroDown)
+		{
+			ovr_SetInt(*systems.pOvrSession, OVR_PERF_HUD_MODE, (int)ovrPerfHud_Off);
 		}
 
 

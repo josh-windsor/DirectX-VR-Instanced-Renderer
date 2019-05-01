@@ -130,7 +130,7 @@ float4 PS_Mesh(VertexOutput input) : SV_TARGET
 	float I = dot(L, N);
 	//return float4(I,I,I, 1.0f);
 
-	/*Attempt at making blinders for VR using vignette
+	/*Attempt at making blinders for VR using vignette would require view matrix for each eye
 	float2 offset = mul(float4(input.pos_ws.xyz, 1.0f), matView).xy - float2(0.5, 0.5);
 	float t = smoothstep(0.9f, 1.f, length(offset));
 	return float4(t, t, t, 1.0f);*/
