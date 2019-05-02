@@ -29,6 +29,7 @@ struct Keys
 	bool aDown;
 	bool dDown;
 	bool vDown;
+	//for Performance hud
 	bool oneDown;
 	bool twoDown;
 	bool threeDown;

@@ -82,6 +82,8 @@ void Mesh::draw(ID3D11DeviceContext* pContext) const
 		pContext->Draw(m_vertices, 0);
 	}
 }
+
+//stereo instanced draw
 void Mesh::drawIndexedInstanced(ID3D11DeviceContext* pContext) const
 {
 	pContext->DrawIndexedInstanced((UINT)m_indices, 2, 0, 0, 0);

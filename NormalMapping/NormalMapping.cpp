@@ -122,6 +122,8 @@ public:
 		D3Dvp.TopLeftX = vpX; D3Dvp.TopLeftY = vpY;
 		systems.pD3DContext->RSSetViewports(1, &D3Dvp);
 	}
+
+	//draws a single model based on the passed in params
 	void DrawSingleModel(ID3D11DeviceContext* pContext, bool renderStereo, XMMATRIX* prod, int mesh, int texture, v3 translation, int yRot, int tileFactor)
 	{
 		m_meshArray[mesh].bind(pContext);
@@ -132,11 +134,13 @@ public:
 		m4x4 matWorld = m4x4::CreateTranslation(translation) * m4x4::CreateRotationY(degToRad(yRot));
 		if (renderStereo)
 		{
+			//sets both viewproj matrix for stereo offset
 			m_perDrawCBData.m_modelViewProj[0] = (matWorld * prod[0]).Transpose();
 			m_perDrawCBData.m_modelViewProj[1] = (matWorld * prod[1]).Transpose();
 		}
 		else
 		{
+			//calculate main MVP matrix
 			m4x4 matMVP = matWorld * *prod;
 			m_perDrawCBData.m_matMVP = matMVP.Transpose();
 		}
@@ -145,7 +149,7 @@ public:
 		m_perDrawCBData.m_matWorld = matWorld.Transpose();
 		m_perDrawCBData.m_tileFactor = tileFactor;
 
-
+		//pack the normals into world
 		pack_upper_float3x3(m_perDrawCBData.m_matWorld, m_perDrawCBData.m_matNormal);
 
 		// Push to GPU
@@ -250,10 +254,9 @@ public:
 		DrawSingleModel(systems.pD3DContext, renderStereo, prod, 5, 8, v3(-2.f, -0.5f, 11.f), 180, 1);
 	}
 
-	int testint = 0;
-
 	void on_render(SystemsInterface& systems) override
 	{
+		//get the current oculus session
 		ovrSessionStatus sessionStatus;
 		ovrResult result = ovr_GetSessionStatus(*systems.pOvrSession, &sessionStatus);
 		printf(std::to_string(result).c_str());
@@ -274,6 +277,7 @@ public:
 									 eyeRenderDesc[1].HmdToEyePose };
 
 		double sensorSampleTime;    // sensorSampleTime is fed into the layer later
+		//get the eye poses
 		ovr_GetEyePoses(*systems.pOvrSession, 0, ovrTrue, HmdToEyePose, EyeRenderPose, &sensorSampleTime);
 
 		ovrTimewarpProjectionDesc posTimewarpProjectionDesc = {};
@@ -333,6 +337,7 @@ public:
 		if (systems.stereo)
 		{
 			// use instancing for stereo
+			//set viewport to be the length of both eyes
 			SetViewport(systems, 0.0f, 0.0f, (float)systems.pEyeRenderViewport[0]->Size.w + systems.pEyeRenderViewport[1]->Size.w, (float)systems.pEyeRenderViewport[0]->Size.h);
 			// Update Per Frame Data.
 			m_perFrameCBData.m_matProjection = XMMatrixTranspose(projMatrix[0]);
@@ -349,12 +354,12 @@ public:
 			// non-instanced path
 			for (int eye = 0; eye < 2; ++eye)
 			{
-				// set viewport
+				// set viewport for each eye individually
 				SetViewport(systems, (float)systems.pEyeRenderViewport[eye]->Pos.x, (float)systems.pEyeRenderViewport[eye]->Pos.y,
 					(float)systems.pEyeRenderViewport[eye]->Size.w, (float)systems.pEyeRenderViewport[eye]->Size.h);
 
 
-
+				//render scene
 				RenderScene(systems, &viewProjMatrix[eye], systems.stereo);
 			}
 		}
@@ -371,6 +376,7 @@ public:
 		ld.ProjectionDesc = posTimewarpProjectionDesc;
 		ld.SensorSampleTime = sensorSampleTime;
 
+		//set final layer params to submit to headset
 		for (int eye = 0; eye < 2; ++eye)
 		{
 			ld.ColorTexture[eye] = systems.pEyeRenderTexture->TextureChain;

@@ -356,8 +356,9 @@ public:
 		if (m_pRenderCallback)
 		{
 			m_pRenderCallback();
-		}	
-		m_pSwapChain->Present(0, 0); // use VSYNC
+		}
+		//VSync diabled so headset can lock to 90hz
+		m_pSwapChain->Present(0, 0); 
 	}
 
 	void onResize() override
@@ -409,11 +410,10 @@ private:
 		ovrResult result = ovr_Initialize(&initParams);
 		VALIDATE(OVR_SUCCESS(result), "Failed to initialize libOVR.");
 
+		//creates a session which is used in most oculus commands
 		ovrGraphicsLuid luid;
 		result = ovr_Create(&m_pOvrSession, &luid);
 		VALIDATE(OVR_SUCCESS(result), "Failed to create ovr session.");
-
-
 
 
 		UINT createDeviceFlags = 0;
@@ -426,6 +426,7 @@ private:
 #endif // DEBUG
 
 
+		//setup swap chain params
 		DXGI_SWAP_CHAIN_DESC sd = { 0 };
 		sd.BufferCount = 2;
 		sd.BufferDesc.Width = width;
@@ -485,8 +486,9 @@ private:
 			textureSize.w = eyeTexSizeL.w + eyeTexSizeR.w;
 			textureSize.h = max(eyeTexSizeL.h, eyeTexSizeR.h);
 
+			//create the render target & depth with OculusTexture
 			m_pOvrEyeRenderTexture = new OculusTexture();
-			if (!m_pOvrEyeRenderTexture->Init(m_pOvrSession, textureSize.w, textureSize.h, 1, true, m_pD3DDevice.Get()))
+			if (!m_pOvrEyeRenderTexture->Init(m_pOvrSession, textureSize.w, textureSize.h, 1, m_pD3DDevice.Get()))
 			{
 				panicF("Failed to create eye texture.");
 			}
