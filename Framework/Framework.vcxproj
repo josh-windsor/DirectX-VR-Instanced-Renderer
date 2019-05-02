@@ -155,6 +155,7 @@
       <MinimalRebuild>false</MinimalRebuild>
       <StringPooling>true</StringPooling>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>$(OVRSDKROOT)LibOVR/Common/;$(OVRSDKROOT)LibOVR/Include/</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -162,6 +163,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <Lib>
+      <AdditionalDependencies>$(OVRSDKROOT)LibOVR/Lib/Windows/$(Platform)/$(Configuration)/$(VSDIR)/LibOVR.lib;</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CommonHeader.h" />
